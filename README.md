@@ -2,7 +2,7 @@
 
 A 3D labyrinth game written in Rust. Tilt the board to roll the ball through the maze and drop it into the green goal hole — without falling into the red trap holes.
 
-![Gameplay screenshot](screenshot.png)
+![Gameplay demo — the built-in autopilot beating all three levels](demo.gif)
 
 ## How to play
 
