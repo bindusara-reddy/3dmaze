@@ -5,6 +5,7 @@ edition = "2024"
 
 [dependencies]
 macroquad = "0.4"
+image = { version = "0.24", default-features = false, features = ["gif"] }
 
 [profile.dev]
 opt-level = 1

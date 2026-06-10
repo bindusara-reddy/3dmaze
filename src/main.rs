@@ -235,6 +235,27 @@ fn draw_hole(x: f32, z: f32, ring: Color) {
     draw_cylinder(vec3(x, 0.024, z), HOLE_R, HOLE_R, 0.012, None, Color::from_rgba(18, 14, 10, 255));
 }
 
+// 2x2 box-average downscale so the recorded gif stays small; also flips
+// vertically because get_screen_data() returns bottom-up rows
+fn downscale_half(bytes: &[u8], w: u32, h: u32) -> (Vec<u8>, u32, u32) {
+    let (nw, nh) = (w / 2, h / 2);
+    let mut out = Vec::with_capacity((nw * nh * 4) as usize);
+    for y in 0..nh {
+        let sy = h - 2 - 2 * y;
+        for x in 0..nw {
+            for c in 0..4u32 {
+                let idx = |xx: u32, yy: u32| ((yy * w + xx) * 4 + c) as usize;
+                let s = bytes[idx(2 * x, sy)] as u32
+                    + bytes[idx(2 * x + 1, sy)] as u32
+                    + bytes[idx(2 * x, sy + 1)] as u32
+                    + bytes[idx(2 * x + 1, sy + 1)] as u32;
+                out.push((s / 4) as u8);
+            }
+        }
+    }
+    (out, nw, nh)
+}
+
 // autopilot: BFS from the ball's cell to the goal cell (trap cells count as
 // blocked) and return the point to steer toward right now
 fn bot_target(level: &Level, pos: Vec2) -> Vec2 {
@@ -308,6 +329,17 @@ async fn main() {
     let bot = std::env::args().any(|a| a == "--bot");
     let mut auto_t = 0.0f32;
     let mut frame_no = 0u32;
+
+    // bot mode records its whole run into one animated gif instead of
+    // littering the folder with screenshots
+    let mut recorder = if bot {
+        let file = std::fs::File::create("gameplay.gif").expect("cannot create gameplay.gif");
+        let mut enc = image::codecs::gif::GifEncoder::new_with_speed(file, 30);
+        let _ = enc.set_repeat(image::codecs::gif::Repeat::Infinite);
+        Some(enc)
+    } else {
+        None
+    };
 
     let mut level_idx = 0usize;
     let mut level = Level::parse(LEVELS[0]);
@@ -571,15 +603,27 @@ async fn main() {
         }
         if bot {
             frame_no += 1;
-            if frame_no % 75 == 0 {
-                get_screen_data().export_png(&format!("bot_{:03}.png", frame_no / 75));
+            let done = matches!(phase, Phase::Done);
+            // ~6 fps half-res recording; always capture the final victory frame
+            if frame_no % 10 == 0 || done {
+                let shot = get_screen_data();
+                let (small, w, h) =
+                    downscale_half(&shot.bytes, shot.width as u32, shot.height as u32);
+                if let (Some(enc), Some(buf)) = (
+                    recorder.as_mut(),
+                    image::RgbaImage::from_raw(w, h, small),
+                ) {
+                    let frame = image::Frame::from_parts(
+                        buf,
+                        0,
+                        0,
+                        image::Delay::from_numer_denom_ms(167, 1),
+                    );
+                    let _ = enc.encode_frame(frame);
+                }
             }
-            if matches!(phase, Phase::Done) {
-                get_screen_data().export_png("bot_win.png");
-                break;
-            }
-            if frame_no > 9000 {
-                get_screen_data().export_png("bot_timeout.png");
+            if done || frame_no > 9000 {
+                drop(recorder.take()); // finalize the gif
                 break;
             }
         }

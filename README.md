@@ -28,7 +28,7 @@ The compiled binary lands in `target/release/tilt-maze.exe`.
 
 ## Extras
 
-- `tilt-maze --bot` — an autopilot plays the game: BFS pathfinding over the maze grid, steering the tilt while avoiding traps. Useful for testing that new levels are beatable. It saves periodic `bot_*.png` screenshots and exits after winning.
+- `tilt-maze --bot` — an autopilot plays the game: BFS pathfinding over the maze grid, steering the tilt while avoiding traps. Useful for testing that new levels are beatable. It records the whole run into a single `gameplay.gif` and exits after winning.
 - `tilt-maze --auto` — a short scripted stress-run that dumps `auto_*.png` framebuffer captures, used for visual regression testing.
 
 ## Adding levels
